@@ -2,7 +2,7 @@ import React from 'react'
 import Button from 'react-bootstrap/Button';
 import * as FileSaver from 'file-saver';
 import * as XLSX from 'xlsx';
-
+import "../styles/index.css";
 
 
 export const ExportCSV = ({csvData, fileName}) => {
@@ -28,7 +28,7 @@ export const ExportCSV = ({csvData, fileName}) => {
         <div class="col"></div>
         <div class="col"></div>
         <div class="col">
-        <Button variant="outline-primary" size="sm" onClick={(e) => exportToCSV(csvData,fileName)}>Export Table</Button>
+        <Button variant="outline" size="sm" onClick={(e) => exportToCSV(csvData,fileName)}>Export Table</Button>
         </div>
         
         </div>

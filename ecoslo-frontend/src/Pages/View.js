@@ -12,6 +12,7 @@ import "../styles/page.css";
 import { FaInfoCircle } from "react-icons/fa";
 import { FaQuestionCircle } from "react-icons/fa";
 import ReactTooltip from "react-tooltip";
+import { scroller, Element } from "react-scroll";
 
 
 
@@ -31,12 +32,13 @@ class View extends React.Component {
       },
       locations: [],
       showAlert: false,
-      groupByCols: [],
       groupByValues: [false, false],
       groupByDate: "Select Date Option...",
+      aggregateFunctionValues: [false, false],
       pubPrivCols: [],
       pubPrivValues: [false, false],
       pubPrivSend: "",
+      eventNamesSelected: [],
 
       columnNames : {
         "Key Information" : {
@@ -123,22 +125,39 @@ class View extends React.Component {
 
   async componentDidMount(){
     try {
-      if(this.state.colNames === undefined) {
+
+      if(this.state.eventNames === undefined) {
+        let res = await this.props.apiWrapper.getEventNames();
+        this.setState({eventNames: res.r})
+      }
+
+      let names = this.state.colNames
+      if(names === undefined) {
         let res = await this.props.apiWrapper.getColumns();
-        var names = []
-        var vals = []
+        names = []
         for (var i = 0; i < res.r.fields.length; i++){
           names.push(res.r.fields[i].name)
-          vals.push(false)
         }
         this.setState({colNames: names})
         this.initSelectedValues()
       }
+
     }
     catch(err){
 
     }
+
     
+  }
+
+
+  scrollToDataTable() {
+    scroller.scrollTo("top-of-data-table", {
+      duration: 800,
+      delay: 0,
+      smooth: "easeInOutQuart",
+      offset: 5
+    });
   }
 
   handleLocationChange (event) {
@@ -153,6 +172,20 @@ class View extends React.Component {
       }
     }
     this.setState({locations: selected})
+  }
+
+  handleEventNameSelectionChange (event) {
+    let selected = []
+    for(var i = 0; i < event.target.options.length; i++){
+      if(event.target.options[i].value === 'Select All' && event.target.options[i].selected){
+        selected=[]
+        break;
+      }
+      else if (event.target.options[i].selected){
+        selected.push(event.target.options[i].value)
+      }
+    }
+    this.setState({eventNamesSelected: selected})
   }
 
   formatDate(d) {
@@ -251,13 +284,14 @@ class View extends React.Component {
       else{
         p = "false"
       }
-      if(this.state.groupByValues[0] === false && this.state.groupByValues[1] === false && this.state.groupByDate === "Select Date Option..."){
-        console.log("pub", this.state.pubPrivSend)
+      //CHECK FOR SELECTED SUM OR AVERAGE TOO
+      if(this.state.groupByValues[0] === false && this.state.groupByValues[1] === false && this.state.groupByDate === "Select Date Option..." && this.state.aggregateFunctionValues[0] === false && this.state.aggregateFunctionValues[1] === false){
         var d = {
           dateStart: this.state.formData['dateStart'],
           dateEnd: this.state.formData['dateEnd'],
           cols: selected,
           locations: this.state.locations,
+          eventNames: this.state.eventNamesSelected,
           public: p
         }
     
@@ -265,6 +299,7 @@ class View extends React.Component {
           let td = await this.props.apiWrapper.getByCols(d);
           if(td.rows !== undefined && td.rows.length !== 0){
             this.setState({tableData: td})
+            this.scrollToDataTable();
           }
           else{
             alert("No data found. Try entering a different date range and location.")
@@ -274,8 +309,19 @@ class View extends React.Component {
           alert("There was an error in your request. Please check your input and try again.")
         }
       }
+
+      //GROUP BY
       else{
         var groupCols = []
+        var aggregateFuncsSelected = []
+
+        if(this.state.aggregateFunctionValues[0] === true){
+          aggregateFuncsSelected.push("sum")
+        }
+        if(this.state.aggregateFunctionValues[1] === true){
+          aggregateFuncsSelected.push("average")
+        }
+
         
         if(this.state.groupByValues[0] === true){
           groupCols.push("location")
@@ -302,25 +348,36 @@ class View extends React.Component {
           dateEnd: this.state.formData['dateEnd'],
           cols: selected,
           locations: this.state.locations,
+          eventNames: this.state.eventNamesSelected,
           groupBy: groupCols, 
+          aggregateFuncs: aggregateFuncsSelected,
           public: p
         }
-        try{
-          let td = await this.props.apiWrapper.sumPerCol(q);
-          if(td.rows !== undefined && td.rows.length !== 0){
-            this.setState({tableData: td})
-          }
-          else{
-            alert("No data found. Try entering a different date range and location.")
-          }
+        if(groupCols.length === 0 || aggregateFuncsSelected.length === 0){
+          alert("You must select both a function option and a group event by option to use the aggregation section.")
         }
-        catch(e){
-          alert("There was an error in your request. Please check your input and try again. If you checked any boxes in the group by section, you can only view date, location, and event name if you also selected them under group by.")
+        else{
+          try{
+            let td = await this.props.apiWrapper.sumPerCol(q);
+            if(td.rows !== undefined && td.rows.length !== 0){
+              this.setState({tableData: td})
+              this.scrollToDataTable();
+            }
+            else{
+              alert("No data found. Try entering a different date range and location.")
+            }
+          }
+          catch(e){
+            alert("There was an error in your request. Please check your input and try again. If you used the aggregation section, you can only view columns that have a numeric value, and those that you selected in the group event by section.")
+          }
         }
 
       }
+
     }
   }
+
+
 
    noDataAlert() {
     if(this.state.showAlert){
@@ -358,15 +415,52 @@ class View extends React.Component {
 
   }
 
+  handleAggregateFuncCheckbox = (e, functionType) => {
+    var duplicateVals = this.state.aggregateFunctionValues
+    if (functionType === "Sum"){
+      duplicateVals[0] = e.target.checked
+      this.setState({aggregateFunctionValues: duplicateVals})
+    }
+    if (functionType === "Average"){
+      console.log(e.target.checked)
+      duplicateVals[1] = e.target.checked
+      this.setState({aggregateFunctionValues: duplicateVals})
+      console.log(this.state.groupByValues)
+    }
+  }
 
+  renderAggregationFunctionCheckBoxes = () => {
+    if(this.state.colNames !== undefined){
+      return(
+        <div>
+          <Form.Label className="big">Aggregate Functions</Form.Label>
+          <FaInfoCircle style={{marginLeft: '5px', color: '#dd9933'}}
+            data-tip="Optional. Check if you want to see totals or average numbers of each item found. If you select anything in this section, you must select a group event by option."
+          />
+          <div></div>
+          <input type="checkbox"
+            name="Sum"
+            checked={this.state.aggregateFunctionValues[0]}
+            onChange={(e) => this.handleAggregateFuncCheckbox(e, "Sum")}/> Sum
+          <div></div>
+
+          <input type="checkbox"
+            name="Average"
+            checked={this.state.aggregateFunctionValues[1]}
+            onChange={(e) => this.handleAggregateFuncCheckbox(e, "Average")}/> Average
+          <div></div>
+        </div>
+      )
+    }
+  }
 
 renderGroupByCheckBoxes = () => {
   if(this.state.colNames !== undefined){
     return(
     <div>
-      <Form.Label className="big">Group By</Form.Label>
-      <FaInfoCircle style={{marginLeft: '5px', color: 'lightBlue'}}
-        data-tip="Optional Section. You can compress all rows based on shared date, location, and event name values into a single row. Use to generate totals."
+      <Form.Label className="big">Group Events By</Form.Label>
+      <FaInfoCircle style={{marginLeft: '5px', color: '#dd9933'}}
+        data-tip="Optional. You can compress all rows based on shared date, location, and event name values into a single row. Use to generate totals."
       />
       <div></div>
       <input type="checkbox"
@@ -399,7 +493,7 @@ renderPublicPrivateCheckBoxes = () => {
  if(this.state.colNames !== undefined){
     return(
     <div>
-      <Form.Label className="big">Event Type</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: 'lightBlue'}}
+      <Form.Label className="big">Event Type</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: '#dd9933'}}
           data-tip="Use to view either only private or only public events. Selecting no boxes is equivalent to selecting both boxes."
         />
       <div></div>
@@ -465,8 +559,15 @@ handlePubPrivCheckbox = (e, col) =>{
  }
 }
 
+changeAllGroupCheckboxes(e, group){
+  let selectedGroupColumns = this.state.columnNames[group];
+  let updatedSelectedValues = this.state.selectedValues;
+  for(var [key, value] of Object.entries(selectedGroupColumns)){
+    updatedSelectedValues[value] = e.target.checked;
+  }
 
-
+  this.setState({selectedValues: updatedSelectedValues});
+}
   
 
   renderItemCheckboxes = ()  => {
@@ -507,7 +608,13 @@ handlePubPrivCheckbox = (e, col) =>{
         })
         return(
           <div>
-          <div className="thick">{group}</div>
+          <div className="thick">
+            
+            {group}
+            <input type="checkbox" style={{marginLeft: '5px'}} onChange={(e) => this.changeAllGroupCheckboxes(e, group)} />
+            {/* <FaCheckCircle style={{marginLeft: '5px', color: '#dd9933'}} onClick={(e) => this.selectAllGroupCheckboxes(e, group)}></FaCheckCircle> */}
+            {/* <Button variant="outline" size="xs" onClick={(e) => this.selectAllGroupCheckboxes(e, group)}>Select All</Button> */}
+          </div>
           <Table bordered hover size="sm">
           <tbody>
             {rows}
@@ -522,6 +629,22 @@ handlePubPrivCheckbox = (e, col) =>{
     return null
    }
   } 
+
+  async handleViewAllData(e) {
+    try{
+      let td = await this.props.apiWrapper.getAllData();
+      if(td.rows !== undefined && td.rows.length !== 0){
+        this.setState({tableData: td})
+        this.scrollToDataTable();
+      }
+      else{
+        alert("No data found.")
+      }
+    }
+    catch(e){
+      alert("There was an error in your request. Please contact web admins.")
+    }
+  }
 
 
   displayHelpModal(){
@@ -592,9 +715,17 @@ handlePubPrivCheckbox = (e, col) =>{
                   <FaQuestionCircle className="float-right" onClick={(e) => this.displayHelpModal()}/>
                 </Col>
               </Row>
-              <h2>
-              View Your Cleanup Data
-            </h2>
+              <Row>
+                <Col>
+                  <h2>
+                    View Your Cleanup Data
+                  </h2>
+                </Col>
+                <Col style={{alignContent: 'right', alignItems: 'right'}}>
+                  <Button className="float-right" variant="solid" size="sm" onClick={(e) => this.handleViewAllData(e)}>View All Data</Button>
+                </Col>
+              </Row>
+              
               
             <Card>
                 
@@ -603,14 +734,14 @@ handlePubPrivCheckbox = (e, col) =>{
                   <Form.Group>
                       <Row>
                         <Col>
-                          <Form.Label className="big">Start Date</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: 'lightBlue'}} data-tip="You will see data from cleanups that occurred on or after this date. "/>
+                          <Form.Label className="big">Start Date</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: '#dd9933'}} data-tip="Required. You will see data from cleanups that occurred on or after this date. "/>
                           <ReactTooltip place="right" type="dark" effect="solid"/>
                           <br></br>
                             <DatePicker selected={this.state.dateStartVal} onChange={(e) => this.handleStartDateChange(e)} dateFormat={'yyyy/MM/dd'} />
                           <br></br>
                         </Col>
                         <Col>
-                          <Form.Label className="big">End Date</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: 'lightBlue'}} data-tip="You will see data from cleanups that occured on or before this date."/>
+                          <Form.Label className="big">End Date</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: '#dd9933'}} data-tip="Required. You will see data from cleanups that occured on or before this date."/>
                           <br></br>
                             <DatePicker selected={this.state.dateEndVal} onChange={(e) => this.handleEndDateChange(e)} dateFormat={'yyyy/MM/dd'} />
                           <br></br>
@@ -619,10 +750,20 @@ handlePubPrivCheckbox = (e, col) =>{
                   </Form.Group>
                       
                   <Form.Group>
-                    <Form.Label className="big">Location</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: 'lightBlue'}} data-tip="You will see data only from cleanups at the locations you select. "/>
+                    <Form.Label className="big">Location</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: '#dd9933'}} data-tip="Required. You will see data only from cleanups at the locations you select. "/>
                       <Form.Control multiple={true} as="select" onChange={(e) => this.handleLocationChange(e)} >
                           <option>Select All</option>
                           { this.props.locations.map((value) => {
+                            return <option>{value}</option>
+                          }) }
+                      </Form.Control>
+                  </Form.Group>
+
+                  <Form.Group>
+                    <Form.Label className="big">Event Name</Form.Label><FaInfoCircle style={{marginLeft: '5px', color: '#dd9933'}} data-tip="Required. You will see data only from cleanups with the event names you select. "/>
+                      <Form.Control multiple={true} as="select" onChange={(e) => this.handleEventNameSelectionChange(e)} >
+                          <option>Select All</option>
+                          { this.state.eventNames.map((value) => {
                             return <option>{value}</option>
                           }) }
                       </Form.Control>
@@ -640,6 +781,9 @@ handlePubPrivCheckbox = (e, col) =>{
               <Card.Body>
               <Card.Title>Select Aggregation Options</Card.Title>
                 <Form.Group>
+                  {this.renderAggregationFunctionCheckBoxes()}
+                </Form.Group>
+                <Form.Group>
                   {this.renderGroupByCheckBoxes()}
                 </Form.Group>
               </Card.Body>
@@ -650,7 +794,7 @@ handlePubPrivCheckbox = (e, col) =>{
             <Card>
               <Card.Body>
               <Card.Title>Select Which Columns to View
-              <FaInfoCircle style={{marginLeft: '5px', color: 'lightBlue', width: '16', height: '16'}} data-tip="You will see the items that you check as columns in the generated table."/>
+              <FaInfoCircle style={{marginLeft: '5px', color: '#dd9933', width: '16', height: '16'}} data-tip="Required. You will see the items that you check as columns in the generated table."/>
 
               </Card.Title>
                 {this.renderItemCheckboxes()}
@@ -659,11 +803,13 @@ handlePubPrivCheckbox = (e, col) =>{
 
             <div style={{margin: '20px'}}/>
 
-            <Button type="submit" onClick={(e) => this.handleSubmit(e)}>Submit</Button>
+            <Button variant="solid" onClick={(e) => this.handleSubmit(e)}>Submit</Button>
           </div>
         </Form>
         </Container>
+        <Element name="top-of-data-table"></Element>
         <DataTable showMessage data={this.state.tableData}></DataTable>
+        
         
       </div>
 </div>

@@ -30,31 +30,38 @@ const routing = (
     <div className = "Site" style={{backgroundColor: '#f4f8fa'}}>
     <Provider store={store}>
         <Router>
-            <Header />
+            {/* <Header /> */}
             <div className="Site-content">
             <Switch >
                 <Route exact path="/">
+                    <Header loggedIn={false}/>
                     <Home />
                 </Route>
                 <Route path="/login">
+                    <Header loggedIn={false}/>
                     <Login apiWrapper={apiWrapper} />
                 </Route>
                 <Route path="/register">
                     <App />
                 </Route>
                 <Route path="/home">
+                    <Header loggedIn={false}/>
                     <Home />
                 </Route>
                 <Route path="/add">
+                    <Header loggedIn={true}/>
                     <AddEvent apiWrapper={apiWrapper} />
                 </Route>
                 <Route path="/view">
+                    <Header loggedIn={true}/>
                     <View apiWrapper={apiWrapper} />
                 </Route>
                 <Route path="/update">
+                    <Header loggedIn={true}/>
                     <Update apiWrapper={apiWrapper} />
                 </Route>
                 <Route path="/alter">
+                    <Header loggedIn={true}/>
                     <AlterTable apiWrapper={apiWrapper}/>
                 </Route>
             </Switch>

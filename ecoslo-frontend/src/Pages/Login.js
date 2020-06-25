@@ -6,6 +6,7 @@ import "../styles/index.css";
 import "../styles/login.css";
 import { userLoginInfo } from "../redux/actions/actions";
 import { Redirect } from "react-router-dom";
+import {Button} from "react-bootstrap";
 
 class Login extends React.Component {
     constructor(props) {
@@ -33,8 +34,6 @@ class Login extends React.Component {
     async attemptSignIn() {
         try {
             let apiReturnValue = await this.props.apiWrapper.login(this.state.username, this.state.password);
-            console.log(apiReturnValue);
-            console.log("HJERE");
             this.props.loginStore({
                 username: this.state.username,
                 password: this.state.password
@@ -65,11 +64,11 @@ class Login extends React.Component {
                                         <MDBCardBody className="mx-4">
                                             <div className="text-center">
                                                 <h3 className="dark-grey-text mb-5">
-                                                    <strong>EcoSLO Database Sign In</strong>
+                                                    <strong>ECOSLO Database Login</strong>
                                                 </h3>
                                             </div>
                                             <MDBInput
-                                                label="Your username"
+                                                label="Username"
                                                 group
                                                 type="text"
                                                 validate
@@ -78,29 +77,15 @@ class Login extends React.Component {
                                                 onChange={evt => this.updateUsername(evt)}
                                             />
                                             <MDBInput
-                                                label="Your password"
+                                                label="Password"
                                                 group
                                                 type="password"
                                                 validate
                                                 containerClass="mb-0"
                                                 onChange={evt => this.updatePassword(evt)}
                                             />
-                                            {/* <p className="font-small blue-text d-flex justify-content-end pb-3">
-                                                Forgot
-                                                <a href="#!" className="blue-text ml-1">
-                                                    Password?
-                                                </a>
-                                            </p> */}
                                             <div className="text-center mb-3">
-                                                <MDBBtn
-                                                    type="button"
-                                                    gradient="blue"
-                                                    rounded
-                                                    className="btn-block z-depth-1a"
-                                                    onClick={() => this.attemptSignIn()}
-                                                >
-                                                    Sign in
-                                                </MDBBtn>
+                                                <Button variant="solid" block onClick={() => this.attemptSignIn()}>Submit</Button>
                                             </div>
                                             {this.state.error ? 
                                                 <Alert
@@ -132,4 +117,3 @@ export default connect(
     null,
     mapDispatchToProps,
 )(Login);
-

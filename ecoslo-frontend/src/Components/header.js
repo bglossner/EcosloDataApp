@@ -5,8 +5,17 @@ import { withRouter } from 'react-router-dom';
 import "../styles/header.css";
 import "../styles/index.css";
 
-const linkToText = {
+const linkToTextNotLoggedIn = {
   "/login" : "Login",
+  "/home" : "Home",
+  "/add" : "Add",
+  "/view" : "View",
+  "/update" : "Update", 
+  "/alter" : "Alter Table"
+};
+
+const linkToTextLoggedIn = {
+  "/logout" : "Logout",
   "/home" : "Home",
   "/add" : "Add",
   "/view" : "View",
@@ -16,31 +25,14 @@ const linkToText = {
 
 class Header extends React.Component {
 
-  getAppropriateLinkType = (linkName) => {
-    const linkAt = this.props.location.pathname || "/home";
-    if (linkAt === linkName) {
-      return (
-        <Navbar.Brand 
-          href={linkName}
-          key={linkName}
-          className="ml-3"
-        >
-          { linkToText[linkName] }
-        </Navbar.Brand>
-      );
-    }
-
-    return (
-      <Nav.Link
-        href={linkName}
-        key={linkName}
-      >
-        { linkToText[linkName] }
-      </Nav.Link>
-    );
-  }
-
   render() {
+    var currLinkToText = {};
+    if(this.props.loggedIn === true){
+      currLinkToText = linkToTextLoggedIn;
+    }
+    else{
+      currLinkToText = linkToTextNotLoggedIn;
+    }
     return (
       <div >
         <Navbar className="header-strip" variant="dark">
@@ -52,7 +44,32 @@ class Header extends React.Component {
             alt="React Bootstrap logo"
           />
           <Nav>
-            { Object.keys(linkToText).map(this.getAppropriateLinkType) }
+            { Object.keys(currLinkToText).map((linkName) => {
+                const linkAt = this.props.location.pathname || "/home";
+                if (linkAt === linkName) {
+                  return (
+                    <Navbar.Brand 
+                      href={linkName}
+                      key={linkName}
+                      className="ml-3"
+                    >
+                      {currLinkToText[linkName]}
+                    </Navbar.Brand>
+                  );
+                }
+            
+                return (
+                  <Nav.Link
+                    href={linkName}
+                    key={linkName}
+                  >
+                    {currLinkToText[linkName]}
+                  </Nav.Link>
+                );
+            
+              }
+            )
+            }
           </Nav>
       </Navbar>
       <div></div>

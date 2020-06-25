@@ -3,6 +3,7 @@ const Errors = require('./errors');
 const dataTypeConverter = {
     "16": "boolean",
     "23": "numeric",
+    "1700": "numeric",
     "1082": "string",
     "1043": "string"
 }
@@ -38,14 +39,16 @@ module.exports = class Database {
 
 
     _createArgStr(row) {
+        let values = [];
         let str = '';
         Object.keys(row).forEach((key, index) => {
             if (index > 0) {
                 str += ', ';
             }
             str += key;
+            values.push(row[key])
         })
-        return str;
+        return [str, values];
     }
 
     _createValStr(row) {
@@ -60,10 +63,12 @@ module.exports = class Database {
     }
 
     _createRowQuery(row) {
-        const argStr = this._createArgStr(row);
+        const keyvalues = this._createArgStr(row);
+        const argStr = keyvalues[0];
+        const valArray = keyvalues[1];
         const valStr = this._createValStr(row);
         const queryStr = 'INSERT INTO ' + this.dbName + ' (' + argStr + ') VALUES(' + valStr + ')';
-        return queryStr;
+        return [queryStr, valArray];
     }
 
     _validateDateRange(startDate, endDate) {
@@ -89,7 +94,7 @@ module.exports = class Database {
         return queryStr;
     }
 
-    _createSelectQuery(colNames, dateStart, dateEnd, locations, isPublicString) {
+    _createSelectQuery(colNames, dateStart, dateEnd, locations, isPublicString, eventNames) {
         var queryStr = 'SELECT ';
         var i;
         var continuing = false;
@@ -142,13 +147,35 @@ module.exports = class Database {
             }
             queryStr+= ')'
         }
+
+        if(eventNames !== null && eventNames.length > 0 && eventNames[0] !== '' && eventNames.includes('*') === false){
+            if(continuing) {
+                queryStr += ' AND ('
+            }
+            else {
+                queryStr+= ' WHERE ('
+            }
+
+            for(i=0; i < eventNames.length; i++){
+                if(i===(eventNames.length-1)){
+                    queryStr += 'event_name = \'' + eventNames[i] + '\''
+                }
+                else{
+                    queryStr += 'event_name = \'' + eventNames[i] + '\' OR '
+                }
+            }
+            queryStr+= ')'
+        }
+
+
         return queryStr;
     }
 
 
-    _createSelectSumQuery(colNames, dateStart, dateEnd, locations, groupBy, isPublicString) {
+    _createSelectSumQuery(colNames, dateStart, dateEnd, locations, groupBy, aggregateFuncs, isPublicString, eventNames) {
         console.log("groupBy: ", groupBy)
         var sum_cols = [];
+        var avg_cols = [];
         var queryStr = 'SELECT ';
         var i;
         var continuing = false;
@@ -168,8 +195,18 @@ module.exports = class Database {
                 }
             }
             else {
-                queryStr = queryStr.concat(("SUM(" + colNames[i] + ") as total_" + colNames[i]));
-                sum_cols.push(colNames[i])
+                var numAggregateFuncs = aggregateFuncs.length;
+                if(aggregateFuncs.includes('sum')){
+                    queryStr = queryStr.concat("SUM(case when " + colNames[i] + " >= 0 then " + colNames[i] + " else NULL end) as total_" + colNames[i]);
+                    sum_cols.push(colNames[i])
+                    if(numAggregateFuncs > 1){
+                        queryStr = queryStr.concat(', ');
+                    }
+                }
+                if(aggregateFuncs.includes('average')){
+                    queryStr = queryStr.concat("TRUNC( AVG(case when " + colNames[i] + " >= 0 then " + colNames[i] + " else NULL end), 2) as average_" + colNames[i]);
+                    avg_cols.push(colNames[i])
+                }
             }
             if (i != (colNames.length - 1)){
                 queryStr = queryStr.concat(', ');
@@ -220,20 +257,23 @@ module.exports = class Database {
             queryStr+= ')'
         }
 
-        if(sum_cols.length > 0){
+        if(eventNames !== null && eventNames.length > 0 && eventNames[0] !== '' && eventNames.includes('*') === false){
             if(continuing) {
                 queryStr += ' AND ('
             }
             else {
                 queryStr+= ' WHERE ('
             }
-            
-            for(var k = 0; k < sum_cols.length; k++){
-                queryStr += sum_cols[k] + ' > -1)'
-                if(k !== sum_cols.length-1){
-                    queryStr += ' AND ('
+
+            for(i=0; i < eventNames.length; i++){
+                if(i===(eventNames.length-1)){
+                    queryStr += 'event_name = \'' + eventNames[i] + '\''
+                }
+                else{
+                    queryStr += 'event_name = \'' + eventNames[i] + '\' OR '
                 }
             }
+            queryStr+= ')'
         }
 
         continuing = false;
@@ -295,9 +335,11 @@ module.exports = class Database {
     async add(row) {
 
         const queryStr = this._createRowQuery(row);
-        console.log("query", queryStr)
+        
+        console.log("queryString: ", queryStr[0])
+        console.log("queryValues: ", queryStr[1])
         try {
-            await this.client.query(queryStr);
+            await this.client.query(queryStr[0], queryStr[1]);
         } catch (err) {
             console.log("ERROR");
             throw new Error(Errors.error.queryError);
@@ -353,7 +395,6 @@ module.exports = class Database {
         const queryStr = 'SELECT * FROM ' + this.dbName + '';
         try {
             const result = await this.client.query(queryStr);
-            console.log("result in getCols: ", result)
             for(var i = 0; i < result.fields.length; i ++){
                 result.fields[i].format = dataTypeConverter[`${result.fields[i].dataTypeID}`]
             }
@@ -363,9 +404,24 @@ module.exports = class Database {
         }
     }
 
+    async getEventNames() {
+        const queryStr = 'SELECT DISTINCT event_name FROM ' + this.dbName + '';
+        try {
+            const result = await this.client.query(queryStr);
+            let eventNames = [];
+            for (const obj of result.rows) {
+                eventNames.push(obj['event_name']);
+            }
+            console.log("eventNames: ", eventNames)
+            return eventNames;
+        } catch (err) {
+            throw new Error(Errors.error.queryError);
+        }
+    }
+
     async getByCol(req) {
         console.log("req", req.public)
-        const queryStr = this._createSelectQuery(req.cols, req.dateStart, req.dateEnd, req.locations, req.public);
+        const queryStr = this._createSelectQuery(req.cols, req.dateStart, req.dateEnd, req.locations, req.public, req.eventNames);
         console.log("query", queryStr)
         try {
             const result = await this.client.query(queryStr);
@@ -400,7 +456,7 @@ module.exports = class Database {
                 if(req.body.name === null || req.body.dataType === null){
                     throw new Error(Errors.error.badData);
                 }
-                if(req.body.dataType === 'INT'){
+                if(req.body.dataType === 'DECIMAL'){
                     var queryStr = "ALTER TABLE " + this.dbName + " ADD COLUMN " + req.body.name + " " + req.body.dataType + " DEFAULT -1;"
                 }
                 else if(req.body.dataType === 'STRING'){
@@ -436,7 +492,7 @@ module.exports = class Database {
 
     async sumPerCol(req) {
         console.log("req", req.public)
-        const queryStr = this._createSelectSumQuery(req.cols, req.dateStart, req.dateEnd, req.locations, req.groupBy, req.public);
+        const queryStr = this._createSelectSumQuery(req.cols, req.dateStart, req.dateEnd, req.locations, req.groupBy, req.aggregateFuncs, req.public, req.eventNames);
         console.log("query", queryStr)
         //console.log(queryStr)
         try {
@@ -444,6 +500,27 @@ module.exports = class Database {
             return result
         } catch (err) {
             throw new Error(Errors.queryError);
+        }
+    }
+
+    async deleteRow(req) {
+        const queryStr = "DELETE FROM " + this.dbName + " WHERE date=$1 AND location=$2;" 
+        try{
+            const result = await this.client.query(queryStr, [req.body.date, req.body.location])
+            return result;
+        }
+        catch(err) {
+            throw new Error(Errors.queryError);
+        }
+    }
+
+    async getAllData() {
+        const queryStr = 'SELECT * FROM ' + this.dbName + '';
+        try {
+            const result = await this.client.query(queryStr);
+            return result;
+        } catch (err) {
+            throw new Error(Errors.error.queryError);
         }
     }
 

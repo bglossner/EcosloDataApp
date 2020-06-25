@@ -29,8 +29,15 @@ class DataTable extends React.Component {
         }
     }
 
+    formatDate(date) {
+        return (date.substring(0, 10)).replace(/-/g,'/');;
+    }
+
     createRow (index) {
         let res = Object.entries(index).map(([key, value]) => {
+            if(key === 'date'){
+                return <td>{this.formatDate(value)}</td>
+            }
             if(value === false){
                 return <td>{'false'}</td>
             }

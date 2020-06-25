@@ -1,5 +1,5 @@
 import React from "react";
-import {Col, Row, Modal, Container, Button, Form, Card} from 'react-bootstrap';
+import {Col, Row, Modal, Container, Form, Card, Button} from 'react-bootstrap';
 import withLocations from '../Components/withLocations';
 import withColumns from '../Components/withColumns';
 import Select from 'react-dropdown-select';
@@ -7,7 +7,24 @@ import ReactTooltip from "react-tooltip";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { FaQuestionCircle } from "react-icons/fa";
+import "../styles/index.css";
 
+// import styled, { css } from 'styled-components'
+
+// const Button = styled.button`
+// background: transparent;
+// border-radius: 3px;
+// border: 2px solid #dd9933;
+// color: #dd9933;
+// font-size: .9rem;
+// box-shadow: 0 2px 5px 0 rgba(0,0,0,.16), 0 2px 10px 0 rgba(0,0,0,.12);
+// padding: .7rem 2rem;
+// margin: 6px;
+// ${props => props.primary  && css`
+// background: #dd9933;
+// color: white;
+// `}
+// `;
 
 const sectionStyle ={
   fontWeight: 'bold',
@@ -266,16 +283,19 @@ class AddEvent extends React.Component {
 
   ///is working?? double check
   handlePublicChange (event) {
-    this.setState({publicState: event.target.value})
-    if(this.state.publicState === 'Public'){
-      this.setState({publicStateVal: 'true'})
+    let publicValue = false;
+    if(event.target.value === 'Public'){
+      publicValue = 'true'
     }
-    else if(this.state.publicState === 'Private'){
-      this.setState({publicStateVal: 'false'})
+    else if(event.target.value === 'Private'){
+      publicValue = 'false'
     }
     let full = this.state.formData;
-    full['public'] = this.formatDate(this.state.publicStateVal)
-    this.setState({formData: full})
+    full['public'] = publicValue
+    this.setState({
+      publicState: event.target.value,
+      publicStateVal: publicValue,
+      formData: full})
   }
 
   formatDate(d) {
@@ -330,9 +350,11 @@ class AddEvent extends React.Component {
 
     let regex;
     if (formEntry.indexOf(".") > -1) {
-      regex = /^[0-9]+\.[0-9]+$/g;
-    } else {
-      regex = /^[0-9]+$/g;
+      regex = /^-?[0-9]+\.[0-9]+$/g;
+    }
+    
+    else {
+      regex = /^-?[0-9]+$/g;
     }
 
     return regex.test(formEntry);
@@ -354,7 +376,8 @@ class AddEvent extends React.Component {
           alert("Value " + value + " for " + convertFieldToLabel(key) + " is not an acceptable value.");
           return false;
         }
-        toSendFormData[key] = (+value) || 0;
+        // toSendFormData[key] = (+value) || 0;
+        toSendFormData[key] = value;
       } else if (this.props.colTypes[key] === "boolean") {
         if (value.toLowerCase() !== "true" && value.toLowerCase() !== "false") {
           alert("Value for " + convertFieldToLabel(key) + " must be true or false.");
@@ -517,13 +540,13 @@ class AddEvent extends React.Component {
       <div style={this.marginstyle}>
         <Modal centered show={this.state.help} onHide={() => this.hideHelpModal()}>
               <Modal.Header closeButton>
-                <Modal.Title>Alter Table Page Help</Modal.Title>
+                <Modal.Title>Add Event Page Help</Modal.Title>
               </Modal.Header>
               <Modal.Body>
                 <b>Purpose and Use</b>
                 <br />
                 The Add page allows you to enter a new cleanup into the database. The cleanup must have a unique date and location.
-                If you did not track a certain item, and the column is a numeric value, enter -1. If you did not find any of a certain item, but it was bring tracked, enter 0.
+                If you did not track a certain item, and the column is a numeric value, enter -1. If you did not find any of a certain item, but it was being tracked, enter 0.
                 You must enter a value for all fields.
                 <br />
               </Modal.Body>
@@ -574,10 +597,9 @@ class AddEvent extends React.Component {
             
             <div style={{margin: '20px'}}/>
 
-            <Button onClick={(e) => this.handleSubmit(e)}>
-              Submit
+            <Button variant="solid" onClick={(e) => this.handleSubmit(e)}>
+              SUBMIT
             </Button>
-
 
             
           </Form>

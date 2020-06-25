@@ -97,6 +97,10 @@ export default class APIWrapper {
         );
     }
 
+    logout() {
+        return this.makeGetRequest("logout");
+    }
+
     addData(dataToBeSubmitted) {
         return this.makeNonGetRequest("POST", "add", {'item': dataToBeSubmitted});
     }
@@ -113,6 +117,10 @@ export default class APIWrapper {
         return this.makeGetRequest("columns");
     }
 
+    getEventNames() {
+        return this.makeGetRequest("eventNames");
+    }
+
     getByCols(dataToBeSubmitted) {
         return this.makeGetRequest("byCols", dataToBeSubmitted);
     }
@@ -123,5 +131,13 @@ export default class APIWrapper {
 
     updateData(dataToBeSubmitted) {
         return this.makeNonGetRequest("PUT", "update", dataToBeSubmitted);
+    }
+
+    deleteRow(dataToBeSubmitted) {
+        return this.makeNonGetRequest("PUT", "deleteRow", dataToBeSubmitted);
+    }
+
+    getAllData() {
+        return this.makeGetRequest("allData");
     }
 }

@@ -124,7 +124,10 @@ app.post('/login', cors(corsOptions), async (req, res) => {
 
 app.use(passport.session()); // PLACE BEFORE ALL ENDPTS THAT NEED AUTH
 
-
+app.get('/logout', function(req, res){
+	req.logout();
+	res.redirect('/login');
+});
 
  app.post('/add', Auth.isAuthenticated, async (req, res) => {
 	// app.post('/add', async (req, res) => {
@@ -153,10 +156,8 @@ app.post('/altTable', Auth.isAuthenticated, async (req, res) => {
 });
 
 app.get('/locations', Auth.isAuthenticated, async (req, res) => {
-	console.log("GETTING LOCATIONS")
 	try {
 		let result = await database.getLocations();
-		console.log("MADE REQUEST LOCATIONS")
 		res.status(200).json({
 			locations : result
 		});
@@ -169,10 +170,21 @@ app.get('/locations', Auth.isAuthenticated, async (req, res) => {
 })
 
 app.get('/columns', Auth.isAuthenticated, async (req, res) => {
-	console.log("GETTING COLUMNS")
 	try{
 		let r = await database.getCols();
-		console.log("MADE REQUEST COLUMNS")
+		res.status(200).json({
+			r
+		});
+	}
+	catch (err) {	
+		res.status(400).send(AppError.stringError(err.message));
+		return;
+	}
+})
+
+app.get('/eventNames', Auth.isAuthenticated, async (req, res) => {
+	try{
+		let r = await database.getEventNames();
 		res.status(200).json({
 			r
 		});
@@ -192,7 +204,23 @@ app.get('/byCols', Auth.isAuthenticated, async (req, res) => {
 		if ("locations" in queryParams) {
 			queryParams["locations"] = queryParams["locations"].split(",");
 		}
+		if ("eventNames" in queryParams) {
+			queryParams["eventNames"] = queryParams["eventNames"].split(",");
+		}
 		let result = await database.getByCol(queryParams);
+		res.status(200).json({
+			rows : result.rows
+		});
+	}
+	catch (err) {
+		res.status(400).send(AppError.stringError(err.message));
+		return;
+	}
+})
+
+app.get('/allData', Auth.isAuthenticated, async (req, res) => {
+	try{
+		let result = await database.getAllData();
 		res.status(200).json({
 			rows : result.rows
 		});
@@ -212,8 +240,14 @@ app.get('/sumPerCol', Auth.isAuthenticated, async (req, res) => {
 		if ("locations" in queryParams) {
 			queryParams["locations"] = queryParams["locations"].split(",");
 		}
+		if ("eventNames" in queryParams) {
+			queryParams["eventNames"] = queryParams["eventNames"].split(",");
+		}
 		if ("groupBy" in queryParams) {
 			queryParams["groupBy"] = queryParams["groupBy"].split(",");
+		}
+		if("aggregateFuncs" in queryParams) {
+			queryParams["aggregateFuncs"] = queryParams["aggregateFuncs"].split(",");
 		}
 		let result = await database.sumPerCol(queryParams);
 		res.status(200).json({
@@ -244,6 +278,19 @@ app.put('/update', Auth.isAuthenticated, async (req, res) => {
 		return;
 	}
 });
+
+app.put('/deleteRow', Auth.isAuthenticated, async (req, res) => {
+	try{
+		const result = await database.deleteRow(req);
+		res.status(200).json({
+			rows : result.rows
+		});
+	}
+	catch(err){
+		res.status(400).send(AppError.stringError(err.message));
+		return;
+	}
+})
 
 
 

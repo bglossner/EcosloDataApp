@@ -1,11 +1,12 @@
 #home-page {
-    background-image: url("../images/Beach-Keepers-2018.jpg");
+    background-image: url("../images/backgroundBlurred.png");
     background-repeat: no-repeat;
     background-size: 100% 100%;
 }
 
 .center-strip {
     background-color: rgba(100, 100, 100, 0.6);
+    /* background-color: #ffb3008c; */
     height: 10%;
     width: 100%;
     display: flex;
@@ -25,7 +26,8 @@
 
 .home-buttons > a {
     /* background-color: rgb(120, 180, 255); */
-    background-color: #4285f4;
+    /* background-color: #FFC125; */
+    background-color: #286c31;
     border-radius: 8%;
     /* font-weight: bold; */
     margin: 0 10%;
